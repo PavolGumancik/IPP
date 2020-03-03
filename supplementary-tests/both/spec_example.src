@@ -10,5 +10,3 @@ WRITE string@\010
 CONCAT GF@counter GF@counter string@a
 JUMP while
 LABEL end
-POPS GF@counter
-TYPE GF@counter GF@counter

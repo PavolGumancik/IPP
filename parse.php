@@ -14,6 +14,112 @@
   *@param $argv Arguments of program
   *@param $argc Number of arguments
   */
+
+  $xml = new DOMDocument("1.0","UTF-8");
+  $root = $xml->createElement('program');
+  $xml->formatOutput=true;
+
+  $xml->appendChild($root);
+  $root->setAttribute("language", "IPPcode20"); // pridanie atributu
+
+  /*
+  *@brief Vrati type premennej
+  *
+  *@param counter n-ty prvok pola
+  *@param Pline parsovany riadok
+  */
+  function veriable($counter, &$Pline){
+    $Avariable=preg_split('#(?<!\\\)\@#',$Pline[$counter]);
+    if ($Avariable[0] != 'GF' || $Avariable[0] != 'LF' || $Avariable[0] != 'TF') {
+      return ($Avariable[1]);
+    }
+    else {
+      return $Pline[$counter];
+    }
+  }
+
+  /*
+  *@brief uprava prvkov do xml
+  *
+  *@param counter x-ty prvok pola, ktory upravujem
+  *@param Pline, ukazatel na pole obsahujuce aktualny prikaz
+  */
+  function argXML($counter, &$Pline){
+
+    $Avariable=preg_split('#(?<!\\\)\@#',$Pline[$counter]); // rozdelenie do pola podla @
+    //print_r( $Avariable);
+    switch ($Avariable[0]) {
+      case "int":
+        return 'int';
+        break;
+      case 'bool':
+        return 'bool';
+        break;
+      case 'string':
+        return 'string';
+        break;
+      case 'nil':
+        return '';
+      case 'label':
+        return 'label';
+        break;
+      case 'type':
+        return '';
+        break;
+      case 'GF':
+        return 'var';
+        break;
+      case 'LF':
+        return 'var';
+        break;
+      case 'TF':
+        return 'var';
+        break;
+      default:
+        exit (23);
+        break;
+    }
+
+  }
+
+  /*
+  *@brief vrati obsah premennej
+  *
+  *@param counter x-ty prvok pola, ktory upravujem
+  *@param Pline, ukazatel na pole obsahujuce aktualny prikaz
+  */
+  function contain($counter, $variable){
+    $Avariable=preg_split('#(?<!\\\)\@#',$variable); // parsovanie podla @
+    $countArr = count($Avariable); // pocet prvkov pola
+
+    //print_r($Avariable); //test
+    //echo $variable;     // test
+    //echo $countArr; //test
+
+    if ($Avariable[0] == 'GF' || $Avariable[0] == 'LF' || $Avariable[0] == 'TF') { // vrati format XF@premenna
+      return $variable;
+    }
+    else {
+      if ($countArr == 1){ // prazdna premenna
+        return '';
+      }
+      else {
+        if ($countArr > 1) { // vrati premennu
+          return $Avariable[1];
+        }
+        else {
+          exit(23);
+        }
+      }
+    }
+  }
+
+  /*
+  *@brief kontrola argumentu
+  *
+  *@param argc pocet argumentu
+  *@param argv pole argumentu
+  */
   function argument_check($argc, $argv) {
     if ($argc == 1) {
       return;
@@ -36,108 +142,677 @@
   *@param order poradie prikazu
   */
   function line_processing(&$Pline, $order){
+    global $xml,$root;
+    //$order--;
+    //print_r( $Pline);
     switch ($Pline[0]) {
       case "MOVE":
+          if (count($Pline) != 3) {
+            exit (23);
+          }
+          // vytvorenie a spojenie
+          $instruct = $xml->createElement('instruction');
+          $root->appendChild($instruct);
 
+          $instruct->setAttribute("order", $order);
+          $instruct->setAttribute("opcode", "MOVE");
+
+          $argument = $xml->createElement('arg1',contain($order, $Pline[1]));
+          $instruct->appendChild($argument);
+          $argument->setAttribute("type",argXML(1,$Pline));
+
+          $argumen_t = $xml->createElement('arg2',contain($order, $Pline[2]));
+          $instruct->appendChild($argumen_t);
+          $argumen_t->setAttribute("type",argXML(2,$Pline));
           break;
       case "CREATEFRAME":
-
+          if (count($Pline) != 1) {
+            exit (23);
+          }
+          $instruct = $xml->createElement('instruction');
+          $root->appendChild($instruct);
+          $instruct->setAttribute("order", $order);
+          $instruct->setAttribute("opcode", "CREATEFRAME");
           break;
       case "PUSHFRAME":
-
+          if (count($Pline) != 1) {
+            exit (23);
+          }
+          $instruct = $xml->createElement('instruction');
+          $root->appendChild($instruct);
+          $instruct->setAttribute("order", $order);
+          $instruct->setAttribute("opcode", "PUSHFRAME");
           break;
       case "POPFRAME":
-
+          if (count($Pline) != 1) {
+            exit (23);
+          }
+          $instruct = $xml->createElement('instruction');
+          $root->appendChild($instruct);
+          $instruct->setAttribute("order", $order);
+          $instruct->setAttribute("opcode", "POPFRAME");
           break;
+      //opakovaná definice proměnné jižexistující v daném rámci vede na chybu 52.
       case "DEFVAR":
+          if (count($Pline) != 2) {
+
+            exit (23);
+          }
+          if (argXML(1, $Pline) != 'var') {
+            exit (23);
+          }
+          $instruct = $xml->createElement('instruction');
+          $root->appendChild($instruct);
+
+          $instruct->setAttribute("order", $order);
+          $instruct->setAttribute("opcode", "DEFVAR");
+
+          $argument = $xml->createElement('arg1',contain($order, $Pline[1]));
+          $instruct->appendChild($argument);
+          $argument->setAttribute("type",argXML(1,$Pline));
 
           break;
       case "CALL":
-        // code...
+        if (count($Pline) != 2) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "CALL");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","label");
         break;
       case "RETURN":
-        // code...
+        if (count($Pline) != 1) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "RETURN");
         break;
       case "PUSHS":
-        // code...
+        if (count($Pline) != 2) {
+
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "PUSHS");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
         break;
       case "POPS":
-        // code...
+        if (count($Pline) != 2) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "POPS");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
         break;
       case "ADD":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "ADD");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
+
         break;
       case "SUB":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "SUB");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "MUL":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "MUL");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "LT":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "LT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "GT":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "GT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "EQ":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "EQ");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "AND":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "AND");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "OR":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "OR");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "NOT":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "NOT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "INT2CHAR":
-        // code...
+        if (count($Pline) != 3) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "INT2CHAR");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
         break;
       case "STRI2INT":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "STRI2INT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "READ":
-        // code...
+        if (count($Pline) != 3) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "READ");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
         break;
       case "WRITE":
-        // code...
+        if (count($Pline) != 2) {
+          exit (23);
+        }
+        // vytvorenie a spojenie
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "WRITE");
+
+        $argument = $xml->createElement('arg1',contain($order, $Pline[1]));
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
         break;
       case "CONCAT":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "CONCAT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "STRLEN":
-        // code...
+        if (count($Pline) != 3) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "STRLEN");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
         break;
       case "GETCHAR":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "GETCHAR");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "SETCHAR":
-        // code...
+        if (count($Pline) != 4) {
+
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "SETCHAR");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "TYPE":
-        // code...
+        if (count($Pline) != 3) {
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "TYPE");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
         break;
+      //Pokus o redefinici existujícího návěští je chybou 52.
       case "LABEL":
-        // code...
+        if (count($Pline) != 2) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "LABEL");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","label");
         break;
       case "JUMP":
-        // code...
+        if (count($Pline) != 2) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "JUMP");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","label");
         break;
       case "JUMPIFEQ":
-        // code...
+        if (count($Pline) != 4) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "JUMPIFEQ");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","label");
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
       case "JUMPIFNEQ":
-        // code...
+        if (count($Pline) != 4) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "JUMPIFEQ");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","label");
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
         break;
-      case "EXIT":
-        // code...
+      case "EXIT": //SKONTROLOVAT
+        if (count($Pline) != 2) {
+        exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "EXIT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type","int");
         break;
       case "DPRINT":
-        // code...
+        if (count($Pline) != 2) {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "DPRINT");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
         break;
       case "BREAK":
-        // code...
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "BREAK");
         break;
       default:
         exit(22);
@@ -163,16 +838,15 @@
       if($order == 0) {
         // program nie je validny
         if($Dline != '.IPPcode20'){
-          exit (21);
+          if ($Dline == '') { // prazdny riadok, preskocim
+            continue;
+          } else {
+            exit (21);
+          }
         // validita programu
         }
         else{
           $order++;
-          $xml = new DOMDocument("1.0","UTF-8");
-          //$xml->setAttribute("language", "IPPcode20");
-          $root = $xml->createElement('program');
-          $rootNode = $xml->appendChild($root);
-          $rootNode->setAttribute("language", "IPPcode20"); // pridanie atributu
           continue;
         }
       }
@@ -185,11 +859,9 @@
       }
     }
     //KONEC WHILE LOOPU
-    echo $xml->saveXML();
-
-
   }
 
 argument_check($argc, $argv);
 parse();
+echo $xml->saveXML();
 ?>
