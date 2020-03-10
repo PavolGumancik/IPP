@@ -23,6 +23,36 @@
   $root->setAttribute("language", "IPPcode20"); // pridanie atributu
 
   /*
+  *@brief Chybny kod, ak nie je label
+  *
+  *@param counter n-ty prvok pola
+  *@param Pline parsovany riadok
+  */
+  function exit_no_label($counter, &$Pline){
+    if (preg_match('/int@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/bool@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/nil@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/type@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/GF@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/LF@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+    if (preg_match('/TF@/', $Pline[$counter]) === 1) {
+      exit (23);
+    }
+  }
+
+  /*
   *@brief Vrati type premennej
   *
   *@param counter n-ty prvok pola
@@ -92,10 +122,6 @@
     $Avariable=preg_split('#(?<!\\\)\@#',$variable); // parsovanie podla @
     $countArr = count($Avariable); // pocet prvkov pola
 
-    //print_r($Avariable); //test
-    //echo $variable;     // test
-    //echo $countArr; //test
-
     if ($Avariable[0] == 'GF' || $Avariable[0] == 'LF' || $Avariable[0] == 'TF') { // vrati format XF@premenna
       return $variable;
     }
@@ -136,7 +162,7 @@
   }
 
   /*
-  *@brief process instructions
+  *@brief process Zaradenie instrukci a nasledovne vytvorenie elementu
   *
   *@param Pline ukazatel na parsovanu line
   *@param order poradie prikazu
@@ -154,13 +180,16 @@
           $instruct = $xml->createElement('instruction');
           $root->appendChild($instruct);
 
+          //prirazeni atributu k elementu
           $instruct->setAttribute("order", $order);
           $instruct->setAttribute("opcode", "MOVE");
 
+          //vytvorenie "child nodu" a jeho spojeni s korenovou instrukci
           $argument = $xml->createElement('arg1',contain($order, $Pline[1]));
           $instruct->appendChild($argument);
           $argument->setAttribute("type",argXML(1,$Pline));
 
+          //vytvorenie "child nodu" a jeho spojeni s korenovou instrukci
           $argumen_t = $xml->createElement('arg2',contain($order, $Pline[2]));
           $instruct->appendChild($argumen_t);
           $argumen_t->setAttribute("type",argXML(2,$Pline));
@@ -249,7 +278,7 @@
 
         $argument = $xml->createElement('arg1', $Pline[1]);
         $instruct->appendChild($argument);
-        $argument->setAttribute("type",argXML(1,$Pline));
+        $argument->setAttribute("type",argXML(1,$Pline)); //
         break;
       case "POPS":
         if (count($Pline) != 2) {
@@ -335,6 +364,31 @@
 
         $instruct->setAttribute("order", $order);
         $instruct->setAttribute("opcode", "MUL");
+
+        $argument = $xml->createElement('arg1', $Pline[1]);
+        $instruct->appendChild($argument);
+        $argument->setAttribute("type",argXML(1,$Pline));
+
+        $argumentt = $xml->createElement('arg2',contain($order, $Pline[2]));
+        $instruct->appendChild($argumentt);
+        $argumentt->setAttribute("type",argXML(2,$Pline));
+
+        $argumen_t = $xml->createElement('arg3',contain($order, $Pline[3]));
+        $instruct->appendChild($argumen_t);
+        $argumen_t->setAttribute("type",argXML(3,$Pline));
+        break;
+      case "IDIV":
+        if (count($Pline) != 4) {
+          exit (23);
+        }
+        if (argXML(1, $Pline) != 'var') {
+          exit (23);
+        }
+        $instruct = $xml->createElement('instruction');
+        $root->appendChild($instruct);
+
+        $instruct->setAttribute("order", $order);
+        $instruct->setAttribute("opcode", "IDIV");
 
         $argument = $xml->createElement('arg1', $Pline[1]);
         $instruct->appendChild($argument);
@@ -725,6 +779,7 @@
         if (count($Pline) != 2) {
           exit (23);
         }
+        exit_no_label(1, $Pline);
         $instruct = $xml->createElement('instruction');
         $root->appendChild($instruct);
 
@@ -739,6 +794,7 @@
         if (count($Pline) != 4) {
           exit (23);
         }
+        exit_no_label(1, $Pline);
         $instruct = $xml->createElement('instruction');
         $root->appendChild($instruct);
 
@@ -761,6 +817,7 @@
         if (count($Pline) != 4) {
           exit (23);
         }
+        exit_no_label(1, $Pline);
         $instruct = $xml->createElement('instruction');
         $root->appendChild($instruct);
 
@@ -824,6 +881,9 @@
   */
   function parse(){
     $order = 0;
+    $header = False;  //kontrola havicky
+    $orderOP = 1; // cislo operace
+
     while($Dline = fgets(STDIN)){ // Nacitavanie riadku za riadkom
       //odstranenie komentarov
       $Dline = preg_replace('/\#(.)*/','',$Dline);
@@ -846,19 +906,26 @@
         // validita programu
         }
         else{
+          if ($Dline == '.IPPcode20') {
+            $header = True;
+          }
           $order++;
           continue;
         }
       }
-      if (($Dline !='') && ($order > 0)){ // kontrola neprazdnosti stringu
+      if (($Dline !='') && ($header == True)){ // kontrola neprazdnosti stringu ## bolo -(($Dline !='') && ($order > 0))
         // rozdeli Dline do pola "Pline" na jednotlive slova
         $Pline = preg_split('/\s+/', $Dline);
-        line_processing($Pline, $order);
+        line_processing($Pline, $orderOP);
+        $orderOP++;
         //echo $Dline . PHP_EOL; // print line
         $order++;
       }
     }
     //KONEC WHILE LOOPU
+    if ($header == False) {
+      exit(21);
+    }
   }
 
 argument_check($argc, $argv);
