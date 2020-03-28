@@ -169,8 +169,7 @@
   */
   function line_processing(&$Pline, $order){
     global $xml,$root;
-    //$order--;
-    //print_r( $Pline);
+
     switch ($Pline[0]) {
       case "MOVE":
           if (count($Pline) != 3) {
